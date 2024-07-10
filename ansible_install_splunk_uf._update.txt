@@ -1,0 +1,70 @@
+---
+- name: Install Splunk Universal Forwarder
+  hosts: servers
+  become: yes
+  tasks:
+    - name: Install dependencies
+      package:
+        name: bzip2
+        state: present
+
+    - name: Download Splunk Universal Forwarder
+      get_url:
+        url: https://download.splunk.com/products/universalforwarder/releases/9.2.2/linux/splunkforwarder-9.2.2-d76edf6f0a15-Linux-x86_64.tgz
+        dest: /tmp/splunkforwarder.tgz
+
+    - name: Create Splunk directory
+      file:
+        path: /opt/splunkforwarder
+        state: directory
+        mode: '0755'
+
+    - name: Extract Splunk Universal Forwarder
+      unarchive:
+        src: /tmp/splunkforwarder.tgz
+        dest: /opt
+        remote_src: yes
+        creates: /opt/splunkforwarder/bin/splunk
+
+    - name: Ensure Splunk Universal Forwarder directory ownership
+      file:
+        path: /opt/splunkforwarder
+        state: directory
+        owner: root
+        group: root
+        recurse: yes
+
+    - name: Accept Splunk License
+      command: /opt/splunkforwarder/bin/splunk start --accept-license --answer-yes --seed-passwd gyasi1982
+      args:
+        creates: /opt/splunkforwarder/etc/splunk-launch.conf
+
+    - name: Enable boot-start for Splunk Universal Forwarder
+      command: /opt/splunkforwarder/bin/splunk enable boot-start
+
+    - name: Start Splunk Universal Forwarder
+      systemd:
+        name: SplunkForwarder
+        state: started
+        enabled: yes
+
+    - name: Configure deploymentclient.conf
+      copy:
+        dest: /opt/splunkforwarder/etc/system/local/deploymentclient.conf
+        content: |
+          [target-broker:deploymentServer]
+          targetUri = 172.31.27.222:8089
+
+          [deployment-client]
+          clientName = my_forwarder
+
+          [target-broker:deploymentServer]
+          targetUri = 172.31.27.222:8089
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Restart Splunk Universal Forwarder to apply deploymentclient.conf
+      systemd:
+        name: SplunkForwarder
+        state: restarted

@@ -1,0 +1,15 @@
+---
+- name: Remove Splunk Universal Forwarder
+  hosts: servers
+  become: yes
+  tasks:
+    - name: Stop Splunk Universal Forwarder
+      service:
+        name: SplunkForwarder
+        state: stopped
+        enabled: no
+
+    - name: Remove Splunk Universal Forwarder files
+      file:
+        path: /opt/splunkforwarder
+        state: absent
